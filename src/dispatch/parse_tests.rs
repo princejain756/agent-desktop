@@ -107,7 +107,8 @@ fn launch_options_reject_ambiguous_or_nonportable_environment() {
 
 fn launch_args(args: &[String], env: &[String]) -> crate::cli_args::system::LaunchArgs {
     crate::cli_args::system::LaunchArgs {
-        app: "Fixture".into(),
+        app: Some("Fixture".into()),
+        app_flag: None,
         timeout: 100,
         args: args.to_vec(),
         env: env.to_vec(),

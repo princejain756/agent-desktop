@@ -126,3 +126,53 @@ fn window_mutation_args_accept_window_ids() {
     assert_eq!(move_window.scope.window_id.as_deref(), Some("w-42"));
     assert_eq!(minimize.scope.window_id.as_deref(), Some("w-42"));
 }
+
+/// #487: every window-lifecycle command accepts the app name in both shapes a
+/// caller pattern-matches from its siblings — positional and `--app` — instead
+/// of each command keeping one undocumented-in-common form.
+#[test]
+fn window_lifecycle_commands_accept_positional_and_flag_app() {
+    let restore_pos = AppRefArgs::try_parse_from(["restore", "X"]).unwrap();
+    let restore_flag = AppRefArgs::try_parse_from(["restore", "--app", "X"]).unwrap();
+    let minimize_pos = AppRefArgs::try_parse_from(["minimize", "X"]).unwrap();
+    let close_pos = CloseAppArgs::try_parse_from(["close-app", "X"]).unwrap();
+    let close_flag = CloseAppArgs::try_parse_from(["close-app", "--app", "X"]).unwrap();
+    let launch_flag = LaunchArgs::try_parse_from(["launch", "--app", "X"]).unwrap();
+
+    assert_eq!(restore_pos.pos_app.as_deref(), Some("X"));
+    assert_eq!(restore_flag.scope.app.as_deref(), Some("X"));
+    assert_eq!(minimize_pos.pos_app.as_deref(), Some("X"));
+    assert_eq!(close_pos.app.as_deref(), Some("X"));
+    assert_eq!(close_flag.app_flag.as_deref(), Some("X"));
+    assert_eq!(launch_flag.app_flag.as_deref(), Some("X"));
+}
+
+#[test]
+fn window_lifecycle_commands_reject_duplicate_app_forms() {
+    for argv in [
+        vec!["restore", "X", "--app", "Y"],
+        vec!["close-app", "X", "--app", "Y"],
+        vec!["launch", "X", "--app", "Y"],
+    ] {
+        let command = argv[0];
+        let result = match command {
+            "restore" => AppRefArgs::try_parse_from(argv.as_slice()).map(|_| ()),
+            "close-app" => CloseAppArgs::try_parse_from(argv.as_slice()).map(|_| ()),
+            _ => LaunchArgs::try_parse_from(argv.as_slice()).map(|_| ()),
+        };
+        assert!(result.is_err(), "{command} accepted APP and --app together");
+    }
+}
+
+#[test]
+fn close_app_batch_json_ignores_the_cli_only_flag_field() {
+    let parsed: CloseAppArgs = serde_json::from_value(serde_json::json!({
+        "app": "X",
+        "force": true
+    }))
+    .unwrap();
+
+    assert_eq!(parsed.app.as_deref(), Some("X"));
+    assert!(parsed.app_flag.is_none());
+    assert!(parsed.force);
+}

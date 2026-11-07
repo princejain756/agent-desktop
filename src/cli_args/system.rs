@@ -14,8 +14,20 @@ fn default_wait_timeout() -> u64 {
 #[derive(Parser, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LaunchArgs {
-    #[arg(value_name = "APP", help = "Application name or bundle ID")]
-    pub app: String,
+    #[arg(
+        value_name = "APP",
+        help = "Application name or bundle ID",
+        required_unless_present = "app_flag",
+        conflicts_with = "app_flag"
+    )]
+    pub app: Option<String>,
+    #[arg(
+        long = "app",
+        value_name = "APP",
+        help = "Application name or bundle ID (same as APP)"
+    )]
+    #[serde(skip)]
+    pub app_flag: Option<String>,
     #[arg(
         long,
         default_value = "30000",
@@ -66,8 +78,20 @@ pub(crate) struct LaunchArgs {
 #[derive(Parser, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CloseAppArgs {
-    #[arg(value_name = "APP", help = "Application name")]
-    pub app: String,
+    #[arg(
+        value_name = "APP",
+        help = "Application name",
+        required_unless_present = "app_flag",
+        conflicts_with = "app_flag"
+    )]
+    pub app: Option<String>,
+    #[arg(
+        long = "app",
+        value_name = "APP",
+        help = "Application name (same as APP)"
+    )]
+    #[serde(skip)]
+    pub app_flag: Option<String>,
     #[arg(
         long,
         help = "Terminate matching app processes instead of quitting gracefully"
@@ -146,6 +170,13 @@ pub(crate) struct MoveWindowCliArgs {
 #[derive(Parser, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AppRefArgs {
+    #[arg(
+        value_name = "APP",
+        help = "Application name (same as --app)",
+        conflicts_with = "app"
+    )]
+    #[serde(skip)]
+    pub pos_app: Option<String>,
     #[command(flatten)]
     #[serde(flatten)]
     pub scope: WindowScope,
