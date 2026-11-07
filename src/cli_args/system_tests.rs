@@ -176,3 +176,11 @@ fn close_app_batch_json_ignores_the_cli_only_flag_field() {
     assert!(parsed.app_flag.is_none());
     assert!(parsed.force);
 }
+
+#[test]
+fn launch_and_close_app_batch_json_still_require_app_at_preflight() {
+    assert!(serde_json::from_value::<LaunchArgs>(serde_json::json!({})).is_err());
+    assert!(serde_json::from_value::<LaunchArgs>(serde_json::json!({ "app": null })).is_err());
+    assert!(serde_json::from_value::<CloseAppArgs>(serde_json::json!({ "force": true })).is_err());
+    assert!(serde_json::from_value::<CloseAppArgs>(serde_json::json!({ "app": null })).is_err());
+}

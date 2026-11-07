@@ -11,6 +11,13 @@ fn default_wait_timeout() -> u64 {
     30000
 }
 
+fn deserialize_required_app<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    String::deserialize(deserializer).map(Some)
+}
+
 #[derive(Parser, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct LaunchArgs {
@@ -20,6 +27,7 @@ pub(crate) struct LaunchArgs {
         required_unless_present = "app_flag",
         conflicts_with = "app_flag"
     )]
+    #[serde(deserialize_with = "deserialize_required_app")]
     pub app: Option<String>,
     #[arg(
         long = "app",
@@ -84,6 +92,7 @@ pub(crate) struct CloseAppArgs {
         required_unless_present = "app_flag",
         conflicts_with = "app_flag"
     )]
+    #[serde(deserialize_with = "deserialize_required_app")]
     pub app: Option<String>,
     #[arg(
         long = "app",
