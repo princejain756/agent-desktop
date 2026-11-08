@@ -120,6 +120,18 @@ pub(crate) fn validate_wait_mode(args: &WaitArgs) -> Result<(), AppError> {
             "Use --text <text> --count <expected> without --notification, or remove --count.",
         ));
     }
+    if args.predicate.action.is_some() && args.mode.element.is_none() {
+        return Err(AppError::invalid_input_with_suggestion(
+            "--action requires --element",
+            "Use --element <ref> --predicate actionable --action <action>, or remove --action.",
+        ));
+    }
+    if args.mode.window_id.is_some() && args.mode.event.is_none() {
+        return Err(AppError::invalid_input_with_suggestion(
+            "--window-id requires --event",
+            "Use --event window-opened, window-closed, or focus-changed with --window-id, or remove --window-id.",
+        ));
+    }
     validate_event_filters(args)?;
     let selected = [
         args.mode.ms.is_some(),

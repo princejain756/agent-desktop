@@ -153,3 +153,54 @@ fn surface_event_accepts_app_scope() {
 
     assert!(validate_wait_mode(&request).is_ok());
 }
+
+#[test]
+fn orphan_action_flag_is_rejected() {
+    let mut request = args(WaitModeArgs {
+        ms: Some(0),
+        ..mode()
+    });
+    request.predicate.action = Some("type".into());
+
+    let err = validate_wait_mode(&request).unwrap_err();
+
+    assert_eq!(err.code(), "INVALID_ARGS");
+    assert!(err.to_string().contains("--action requires --element"));
+}
+
+#[test]
+fn orphan_window_id_is_rejected() {
+    let result = validate_wait_mode(&args(WaitModeArgs {
+        ms: Some(0),
+        window_id: Some("w-1".into()),
+        ..mode()
+    }));
+
+    let err = result.unwrap_err();
+
+    assert_eq!(err.code(), "INVALID_ARGS");
+    assert!(err.to_string().contains("--window-id requires --event"));
+}
+
+#[test]
+fn action_on_element_wait_is_still_accepted() {
+    let mut request = args(WaitModeArgs {
+        element: Some("@e1".into()),
+        ..mode()
+    });
+    request.predicate.predicate = Some("actionable".into());
+    request.predicate.action = Some("type".into());
+
+    assert!(validate_wait_mode(&request).is_ok());
+}
+
+#[test]
+fn window_id_scoped_event_wait_is_still_accepted() {
+    let result = validate_wait_mode(&args(WaitModeArgs {
+        event: Some("window-closed".into()),
+        window_id: Some("w-1".into()),
+        ..mode()
+    }));
+
+    assert!(result.is_ok());
+}
