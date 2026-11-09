@@ -52,3 +52,20 @@ fn a_cancelled_child_gets_sigterm_before_any_kill() {
     stdout.read_to_string(&mut rest).expect("child exits");
     assert_eq!(rest, "released\n");
 }
+
+#[test]
+fn a_cancelled_id_stays_occupied_until_its_own_call_finishes() {
+    let calls = Calls::default();
+    let id = json!(9);
+    assert!(calls.admit(&id));
+    calls.cancel(&id);
+    assert!(!calls.admit(&id), "a cancelled id must not be re-admitted");
+    assert!(
+        !calls.finish(&id),
+        "the cancelled call finishes without a response"
+    );
+    assert!(
+        calls.admit(&id),
+        "the id is free once its own call finished"
+    );
+}
