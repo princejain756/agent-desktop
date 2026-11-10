@@ -64,6 +64,18 @@ pub(crate) fn get(
     Ok(connection)
 }
 
+/// The cached connection when it is usable for the current environment, or
+/// `None`. Unlike `get` this never opens a connection.
+pub(crate) fn peek(slot: &Mutex<Option<CachedConnection>>) -> Option<Connection> {
+    let scope = environment();
+    let held = slot.lock().unwrap_or_else(PoisonError::into_inner);
+    held.as_ref()
+        .filter(|cached| cached.environment == scope)
+        .and_then(|cached| cached.connection.as_ref())
+        .filter(|connection| !connection.is_closed())
+        .cloned()
+}
+
 pub(crate) fn forget(slot: &Mutex<Option<CachedConnection>>, connection: &Connection) {
     let mut held = slot.lock().unwrap_or_else(PoisonError::into_inner);
     if held

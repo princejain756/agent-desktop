@@ -20,7 +20,7 @@ pub(crate) fn report(
         deadline.capped(CAPTURE_PROBE_SLICE),
     );
     let probed = bus
-        .get(deadline)
+        .probe(deadline)
         .and_then(|connection| probe_registry(bus, &connection, deadline));
     let report = report_from_probe(probed, capture)?;
     deadline.ensure_remaining()?;
@@ -30,7 +30,7 @@ pub(crate) fn report(
 /// Whether the accessibility registry answers on the session bus, which is
 /// what every snapshot surface reads through.
 pub(crate) fn accessibility_answers(bus: &SharedBus, deadline: Deadline) -> bool {
-    bus.get(deadline)
+    bus.probe(deadline)
         .and_then(|connection| probe_registry(bus, &connection, deadline))
         .is_ok()
 }

@@ -192,3 +192,41 @@ fn a_registry_owner_change_invalidates_the_read_and_registers_the_replacement() 
     fresh.finish(deadline()).unwrap();
     assert_eq!(registrations.load(Ordering::SeqCst), 2);
 }
+
+#[test]
+fn a_probe_reuses_the_cached_connection_and_never_opens_a_new_one() {
+    let (client, _server) = std::os::unix::net::UnixStream::pair().unwrap();
+    let (client, _server) = zbus::block_on(futures_lite::future::zip(
+        Builder::async_io_unix_stream(client).p2p().build(),
+        Builder::async_io_unix_stream(_server)
+            .server(zbus::Guid::generate())
+            .unwrap()
+            .p2p()
+            .build(),
+    ));
+    let bus = connected(client.unwrap());
+    let deadline = Deadline::after(5_000).unwrap();
+    let probed = bus.probe(deadline).expect("the cached connection probes");
+    assert_eq!(
+        probed.inner().server_guid(),
+        bus.slot
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .connection
+            .as_ref()
+            .unwrap()
+            .server_guid(),
+        "a probe reuses the announced connection instead of opening a second one"
+    );
+}
+
+#[test]
+fn a_probe_with_no_time_left_never_reaches_the_bus() {
+    let expired = Deadline::after(0).expect("a zero deadline builds");
+    let error = SharedBus::default()
+        .probe(expired)
+        .expect_err("an expired deadline must not reach the bus");
+    assert_eq!(error.code, ErrorCode::Timeout);
+}

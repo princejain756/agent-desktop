@@ -58,3 +58,26 @@ fn a_session_change_or_closed_transport_reopens_without_caching_failures() {
     forget(&slot, &replacement);
     assert!(slot.lock().unwrap().as_ref().unwrap().connection.is_none());
 }
+
+#[test]
+fn peek_returns_only_a_live_connection_for_the_current_environment() {
+    let slot = Mutex::new(None);
+    assert!(peek(&slot).is_none());
+
+    let (live, _server) = pair();
+    let foreign = Mutex::new(Some(CachedConnection {
+        environment: vec![Some("another-session".into())],
+        connection: Some(live.clone()),
+    }));
+    assert!(peek(&foreign).is_none(), "a stale environment hides it");
+
+    let slot = Mutex::new(None);
+    let _ = get(&slot, Deadline::after(5_000).unwrap(), |_| Ok(live.clone())).unwrap();
+    assert_eq!(
+        peek(&slot).unwrap().server_guid(),
+        live.server_guid(),
+        "a cached live connection is reused"
+    );
+    zbus::block_on(live.close()).unwrap();
+    assert!(peek(&slot).is_none(), "a closed connection is not reused");
+}

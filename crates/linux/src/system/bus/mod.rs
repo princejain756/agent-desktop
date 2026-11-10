@@ -69,18 +69,32 @@ fn discover_address(deadline: Deadline, reconnect: bool) -> Result<String, Adapt
 }
 
 fn connect(deadline: Deadline, reconnect: bool) -> Result<Connection, AdapterError> {
+    let connection = open(deadline, reconnect)?;
+    register_connection(connection, deadline)
+}
+
+/// A connection that never registers this process as an event listener, for
+/// callers that only need to know the registry answers. Chromium-family
+/// applications deliver accessibility events only to registered listeners,
+/// and their accessibility bridge can crash while writing to a client that
+/// disconnects mid-event, so a probe that announces itself can kill the very
+/// applications it only meant to look at.
+fn connect_probe(deadline: Deadline) -> Result<Connection, AdapterError> {
+    Ok(open(deadline, false)?.into())
+}
+
+fn open(deadline: Deadline, reconnect: bool) -> Result<AsyncConnection, AdapterError> {
     deadline.ensure_remaining()?;
     let address = discover_address(deadline, reconnect)?;
     deadline.ensure_remaining()?;
-    let connection: AsyncConnection = within(deadline, async {
+    within(deadline, async {
         Builder::address(address.as_str())
             .map_err(|error| classify(&error))?
             .method_timeout(Duration::from_millis(DEFAULT_OPERATION_TIMEOUT_MS))
             .build()
             .await
             .map_err(|error| classify(&error))
-    })?;
-    register_connection(connection, deadline)
+    })
 }
 
 fn register_connection(
@@ -185,6 +199,19 @@ impl SharedBus {
                 })
         })
         .map(Into::into)
+    }
+
+    /// A connection for a one-shot registry probe. A live announced
+    /// connection is reused; otherwise a transient connection is opened
+    /// without announcing this process as a listener, so commands that only
+    /// check permissions never appear to an application as an assistive
+    /// client. The transient connection is not cached.
+    pub(crate) fn probe(&self, deadline: Deadline) -> Result<Connection, AdapterError> {
+        deadline.ensure_remaining()?;
+        if let Some(connection) = cached_connection::peek(&self.slot) {
+            return Ok(connection.into());
+        }
+        connect_probe(deadline)
     }
 
     pub(crate) fn forget_cached(&self) {
